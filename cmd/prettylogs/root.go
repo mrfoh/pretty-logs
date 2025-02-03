@@ -42,7 +42,7 @@ func NewRootCmd() *cobra.Command {
 			requestKey, _ := cmd.Flags().GetString("requestKey")
 
 			// Create a new json formatter
-			formatter := formatter.NewJsonFormatter(&formatter.FormatterOptions{
+			formatter, err := formatter.NewJsonFormatter(&formatter.FormatterOptions{
 				FormatTemplateFile: formatTemplateFile,
 				OutputFormat:       outputFormat,
 				TimestampFormat:    timestampFormat,
@@ -56,6 +56,10 @@ func NewRootCmd() *cobra.Command {
 				HostnameKey:        hostnameKey,
 				RequestKey:         requestKey,
 			})
+			if err != nil {
+				cmd.PrintErr(err)
+				os.Exit(1)
+			}
 
 			// Process the log
 			formatter.Process(os.Stdin)

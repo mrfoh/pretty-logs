@@ -9,52 +9,80 @@ import (
 )
 
 type JsonFormatter struct {
-	Options *FormatterOptions
+	Options  *FormatterOptions
+	Template *template.Template
 }
 
-func NewJsonFormatter(options *FormatterOptions) Formatter {
-	// Set default error keys if not provided
+// Create a new JsonFormatter with the provided options.
+func NewJsonFormatter(options *FormatterOptions) (Formatter, error) {
+	// Set default error keys if not provided.
 	if options.ErrorObjectKeys == nil {
 		options.ErrorObjectKeys = []string{"err", "error"}
 	}
-	// Set default timestamp format if not provided
+	// Set default timestamp format if not provided.
 	if options.TimestampFormat == "" {
 		options.TimestampFormat = "2006-01-02 15:04:05.000"
 	}
-	return &JsonFormatter{
+
+	jf := &JsonFormatter{
 		Options: options,
 	}
+
+	// Parse the template file once if provided.
+	if options.FormatTemplateFile != "" {
+		// Check if the template file exists
+		if _, err := os.Stat(options.FormatTemplateFile); err != nil {
+			return nil, fmt.Errorf("template file does not exist: %s", options.FormatTemplateFile)
+		}
+
+		tmpl, err := template.New(options.FormatTemplateFile).ParseFiles(options.FormatTemplateFile)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing template file: %w", err)
+		}
+
+		jf.Template = tmpl
+	}
+
+	return jf, nil
 }
 
+// Print the log line using the provided template.
 func (f *JsonFormatter) PrintLogLineTemplate(line map[string]interface{}) error {
-	tmpl, err := template.New(f.Options.FormatTemplateFile).ParseFiles(f.Options.FormatTemplateFile)
-	if err != nil {
-		return fmt.Errorf("error parsing template file: %v", err)
-	}
-
 	input := LogLineMapToStruct(line, f.Options)
 
-	err = tmpl.Execute(os.Stdout, input)
-	if err != nil {
-		panic(err)
+	if f.Template == nil {
+		return fmt.Errorf("no template available")
 	}
 
+	if err := f.Template.Execute(os.Stdout, input); err != nil {
+		return fmt.Errorf("error executing template: %w", err)
+	}
 	return nil
 }
 
+// Print the log line to stdout using the provided template or raw JSON.
 func (f *JsonFormatter) PrintLogLine(line map[string]interface{}) {
-	// Check if the template file exists
-	if _, err := os.Stat(f.Options.FormatTemplateFile); err == nil {
-		// Use the template file
-		if err := f.PrintLogLineTemplate(line); err != nil {
-			fmt.Fprintf(os.Stderr, "Error printing log line: %v\n", err)
+	var err error
+	if f.Template != nil {
+		err = f.PrintLogLineTemplate(line)
+	} else {
+		// Fallback: print the raw JSON log line.
+		var out []byte
+		out, err = json.Marshal(line)
+		if err == nil {
+			fmt.Println(string(out))
 		}
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error printing log line: %v\n", err)
 	}
 }
 
+// Process the input file and print the formatted log lines.
 func (f *JsonFormatter) Process(input *os.File) error {
 	scanner := bufio.NewScanner(input)
-	scanner.Buffer(make([]byte, 1024*1024), 1024*1024) // Increase buffer size for large lines
+	// Increase buffer size for large lines.
+	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 
 	for scanner.Scan() {
 		var entry map[string]interface{}
@@ -65,7 +93,7 @@ func (f *JsonFormatter) Process(input *os.File) error {
 
 		logLine := make(map[string]interface{})
 
-		// Extract standard fields
+		// Extract standard fields.
 		logLine[f.Options.TimeKey] = ExtractValue(entry, f.Options.TimeKey)
 		logLine[f.Options.LevelKey] = ExtractValue(entry, f.Options.LevelKey)
 		logLine[f.Options.PidKey] = ExtractValue(entry, f.Options.PidKey)
@@ -75,11 +103,13 @@ func (f *JsonFormatter) Process(input *os.File) error {
 		logLine[f.Options.MsgKey] = ExtractValue(entry, f.Options.MsgKey)
 		logLine[f.Options.RequestKey] = ExtractValue(entry, f.Options.RequestKey)
 
-		// Handle error if present
-		if HasKeys(&entry, f.Options.ErrorObjectKeys) {
+		// Handle error if present.
+		if HasAnyKey(entry, f.Options.ErrorObjectKeys) {
+			// Find the first error key and extract the error message.
 			for _, key := range f.Options.ErrorObjectKeys {
-				if err, ok := entry[key]; ok {
-					logLine["error"] = FormatError(err)
+				// Check if the key exists in the log entry.
+				if HasKey(entry, key) {
+					logLine[key] = ExtractError(entry[key])
 					break
 				}
 			}
@@ -89,7 +119,7 @@ func (f *JsonFormatter) Process(input *os.File) error {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading input: %v", err)
+		return fmt.Errorf("error reading input: %w", err)
 	}
 
 	return nil

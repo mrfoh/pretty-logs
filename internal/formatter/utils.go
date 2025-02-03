@@ -6,20 +6,23 @@ import (
 	"time"
 )
 
-func HasKeys(entry *map[string]interface{}, keys []string) bool {
+// Check if a map contains any of the provided keys.
+func HasAnyKey(entry map[string]interface{}, keys []string) bool {
 	for _, key := range keys {
-		if _, ok := (*entry)[key]; !ok {
-			return false
+		if _, ok := entry[key]; ok {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
-func HasKey(entry *map[string]interface{}, key string) bool {
-	_, ok := (*entry)[key]
+// Check if a map contains a key.
+func HasKey(entry map[string]interface{}, key string) bool {
+	_, ok := (entry)[key]
 	return ok
 }
 
+// Format a timestamp to a string.
 func FormatTimestamp(timestamp interface{}, format string) string {
 	switch t := timestamp.(type) {
 	case string:
@@ -31,32 +34,25 @@ func FormatTimestamp(timestamp interface{}, format string) string {
 	}
 }
 
-func FormatError(err interface{}) string {
+// Extract an error from a log line.
+func ExtractError(err interface{}) string {
 	if err == nil {
 		return ""
 	}
 
 	switch e := err.(type) {
 	case map[string]interface{}:
-		// Check for common error fields
-		// if msg, ok := e["message"].(string); ok {
-		// 	return msg
-		// }
-
-		// if resp, ok := e["response"].(map[string]interface{}); ok {
-		// 	if msg, ok := resp["message"].(string); ok {
-		// 		return msg
-		// 	}
-		// }
-		// Fallback to marshaling the entire error object
 		if errBytes, err := json.Marshal(e); err == nil {
 			return string(errBytes)
 		}
+	case string:
+		return e
 	}
 
 	return fmt.Sprintf("%v", err)
 }
 
+// Extract a value from a map.
 func ExtractValue(entry map[string]interface{}, key string) interface{} {
 	value, ok := entry[key]
 	if !ok {
@@ -65,6 +61,7 @@ func ExtractValue(entry map[string]interface{}, key string) interface{} {
 	return value
 }
 
+// Extract a map value from a map.
 func ExtractMapValue(entry map[string]interface{}, key string) string {
 	value, ok := (entry)[key].(map[string]interface{})
 	if !ok {
@@ -78,6 +75,7 @@ func ExtractMapValue(entry map[string]interface{}, key string) string {
 	return fmt.Sprintf("%v", value)
 }
 
+// Convert a map to a struct.
 func LogLineMapToStruct(line map[string]interface{}, options *FormatterOptions) LogLine {
 	output := LogLine{}
 
@@ -88,18 +86,29 @@ func LogLineMapToStruct(line map[string]interface{}, options *FormatterOptions) 
 	output.Context = ExtractValue(line, options.ContextKey).(string)
 	output.Msg = ExtractValue(line, options.MsgKey).(string)
 
+	// Check for hostname
+	if HasKey(line, options.HostnameKey) {
+		output.Hostname = ExtractValue(line, options.HostnameKey).(string)
+	}
+
 	// Check for request object
-	if HasKey(&line, options.RequestKey) {
+	if HasKey(line, options.RequestKey) {
 		output.Req = ExtractMapValue(line, options.RequestKey)
 	}
 
-	if HasKey(&line, options.ResponseKey) {
+	// Check for response object
+	if HasKey(line, options.ResponseKey) {
 		output.Res = ExtractMapValue(line, options.ResponseKey)
 	}
 
-	// Check for error object
-	if HasKeys(&line, options.ErrorObjectKeys) {
-		output.Error = ExtractValue(line, "error").(string)
+	// Check for error object in log line
+	if HasAnyKey(line, options.ErrorObjectKeys) {
+		for _, key := range options.ErrorObjectKeys {
+			if HasKey(line, key) {
+				output.Error = ExtractValue(line, key)
+				break
+			}
+		}
 	}
 
 	return output
