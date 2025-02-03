@@ -62,7 +62,11 @@ func NewRootCmd() *cobra.Command {
 			}
 
 			// Process the log
-			formatter.Process(os.Stdin)
+			err = formatter.Process(os.Stdin)
+			if err != nil {
+				cmd.PrintErr(err)
+				os.Exit(1)
+			}
 		},
 	}
 
