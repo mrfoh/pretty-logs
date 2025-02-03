@@ -38,21 +38,12 @@ jobs:
       fail-fast: true
       matrix:
         targets:
-          - name: "macos"
-            cmd: make build-macos
-            artifact: "wave1_darwin"
-          - name: "macos-apple-silicon"
-            cmd: make build-macos-arm
-            artifact: "wave1_apple_silicon"
           - name: "linux-amd64"
             cmd: make build-linux
-            artifact: "wave1_linux_amd64"
+            artifact: "prettylogs_linux_amd64"
           - name: "linux-arm64"
             cmd: make build-linux-arm
-            artifact: "wave1_linux_arm64"
-          - name: "windows"
-            cmd: make build-windows
-            artifact: "wave1_windows.exe"
+            artifact: "prettylogs_linux_arm64"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -74,7 +65,7 @@ jobs:
         run: ${{ matrix.targets.cmd }}
       
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.targets.name }}
           path: "bin/${{ matrix.targets.artifact }}"
@@ -91,7 +82,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
 
