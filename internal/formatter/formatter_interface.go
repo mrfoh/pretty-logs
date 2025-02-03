@@ -25,7 +25,7 @@ type LogLine struct {
 	Name     string
 	Context  string
 	Msg      string
-	Error    string
+	Error    interface{}
 	Req      string
 	Res      string
 	Hostname string
