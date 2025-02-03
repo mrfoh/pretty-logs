@@ -76,7 +76,7 @@ func (f *JsonFormatter) Process(input *os.File) error {
 		logLine[f.Options.RequestKey] = ExtractValue(entry, f.Options.RequestKey)
 
 		// Handle error if present
-		if IsErrorLine(&entry, f.Options.ErrorObjectKeys) {
+		if HasKeys(&entry, f.Options.ErrorObjectKeys) {
 			for _, key := range f.Options.ErrorObjectKeys {
 				if err, ok := entry[key]; ok {
 					logLine["error"] = FormatError(err)

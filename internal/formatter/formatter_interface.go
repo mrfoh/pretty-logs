@@ -27,6 +27,7 @@ type LogLine struct {
 	Msg      string
 	Error    string
 	Req      string
+	Res      string
 	Hostname string
 }
 

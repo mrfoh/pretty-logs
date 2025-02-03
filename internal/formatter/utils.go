@@ -6,29 +6,18 @@ import (
 	"time"
 )
 
-func IsErrorLine(entry *map[string]interface{}, keys []string) bool {
+func HasKeys(entry *map[string]interface{}, keys []string) bool {
 	for _, key := range keys {
-		if _, ok := (*entry)[key]; ok {
-			return true
+		if _, ok := (*entry)[key]; !ok {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
-func HasRequest(entry *map[string]interface{}, key string) bool {
-	if _, ok := (*entry)[key]; ok {
-		return true
-	}
-	return false
-}
-
-func HasError(entry *map[string]interface{}, keys []string) bool {
-	for _, key := range keys {
-		if _, ok := (*entry)[key]; ok {
-			return true
-		}
-	}
-	return false
+func HasKey(entry *map[string]interface{}, key string) bool {
+	_, ok := (*entry)[key]
+	return ok
 }
 
 func FormatTimestamp(timestamp interface{}, format string) string {
@@ -99,11 +88,17 @@ func LogLineMapToStruct(line map[string]interface{}, options *FormatterOptions) 
 	output.Context = ExtractValue(line, options.ContextKey).(string)
 	output.Msg = ExtractValue(line, options.MsgKey).(string)
 
-	if HasRequest(&line, options.RequestKey) {
+	// Check for request object
+	if HasKey(&line, options.RequestKey) {
 		output.Req = ExtractMapValue(line, options.RequestKey)
 	}
 
-	if HasError(&line, options.ErrorObjectKeys) {
+	if HasKey(&line, options.ResponseKey) {
+		output.Res = ExtractMapValue(line, options.ResponseKey)
+	}
+
+	// Check for error object
+	if HasKeys(&line, options.ErrorObjectKeys) {
 		output.Error = ExtractValue(line, "error").(string)
 	}
 
