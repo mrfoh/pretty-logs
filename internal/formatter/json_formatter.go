@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"text/template"
 )
 
@@ -35,7 +36,7 @@ func NewJsonFormatter(options *FormatterOptions) (Formatter, error) {
 			return nil, fmt.Errorf("template file does not exist: %s", options.FormatTemplateFile)
 		}
 
-		tmpl, err := template.New(options.FormatTemplateFile).ParseFiles(options.FormatTemplateFile)
+		tmpl, err := template.New(filepath.Base(options.FormatTemplateFile)).ParseFiles(options.FormatTemplateFile)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing template file: %w", err)
 		}
@@ -102,6 +103,13 @@ func (f *JsonFormatter) Process(input *os.File) error {
 		logLine[f.Options.HostnameKey] = ExtractValue(entry, f.Options.HostnameKey)
 		logLine[f.Options.MsgKey] = ExtractValue(entry, f.Options.MsgKey)
 		logLine[f.Options.RequestKey] = ExtractValue(entry, f.Options.RequestKey)
+
+		// Extract additional keys if specified.
+		for _, key := range f.Options.AdditionalKeys {
+			if HasKey(entry, key) {
+				logLine[key] = ExtractValue(entry, key)
+			}
+		}
 
 		// Handle error if present.
 		if HasAnyKey(entry, f.Options.ErrorObjectKeys) {

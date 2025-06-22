@@ -77,18 +77,49 @@ func ExtractMapValue(entry map[string]interface{}, key string) string {
 
 // Convert a map to a struct.
 func LogLineMapToStruct(line map[string]interface{}, options *FormatterOptions) LogLine {
-	output := LogLine{}
+	output := LogLine{
+		Additional: make(map[string]interface{}),
+	}
 
 	output.Time = FormatTimestamp(ExtractValue(line, options.TimeKey), options.TimestampFormat)
-	output.Level = ExtractValue(line, options.LevelKey).(string)
-	output.Pid = ExtractValue(line, options.PidKey).(float64)
-	output.Name = ExtractValue(line, options.NameKey).(string)
-	output.Context = ExtractValue(line, options.ContextKey).(string)
-	output.Msg = ExtractValue(line, options.MsgKey).(string)
+	
+	if level := ExtractValue(line, options.LevelKey); level != "" {
+		if levelStr, ok := level.(string); ok {
+			output.Level = levelStr
+		}
+	}
+	
+	if pid := ExtractValue(line, options.PidKey); pid != "" {
+		if pidFloat, ok := pid.(float64); ok {
+			output.Pid = pidFloat
+		}
+	}
+	
+	if name := ExtractValue(line, options.NameKey); name != "" {
+		if nameStr, ok := name.(string); ok {
+			output.Name = nameStr
+		}
+	}
+	
+	if context := ExtractValue(line, options.ContextKey); context != "" {
+		if contextStr, ok := context.(string); ok {
+			output.Context = contextStr
+		}
+	}
+	
+	if msg := ExtractValue(line, options.MsgKey); msg != "" {
+		if msgStr, ok := msg.(string); ok {
+			output.Msg = msgStr
+		}
+	}
 
 	// Check for hostname
 	if HasKey(line, options.HostnameKey) {
-		output.Hostname = ExtractValue(line, options.HostnameKey).(string)
+		if hostname := ExtractValue(line, options.HostnameKey); hostname != "" {
+			if hostnameStr, ok := hostname.(string); ok {
+				output.Hostname = hostnameStr
+			}
+		}
 	}
 
 	// Check for request object
@@ -108,6 +139,13 @@ func LogLineMapToStruct(line map[string]interface{}, options *FormatterOptions) 
 				output.Error = ExtractValue(line, key)
 				break
 			}
+		}
+	}
+
+	// Extract additional keys
+	for _, key := range options.AdditionalKeys {
+		if HasKey(line, key) {
+			output.Additional[key] = ExtractValue(line, key)
 		}
 	}
 
