@@ -61,6 +61,16 @@ func ExtractValue(entry map[string]interface{}, key string) interface{} {
 	return value
 }
 
+// Extract a typed value from a map with a default value.
+func ExtractTypedValue[T any](entry map[string]interface{}, key string, defaultValue T) T {
+	if value := ExtractValue(entry, key); value != nil && value != "" {
+		if typed, ok := value.(T); ok {
+			return typed
+		}
+	}
+	return defaultValue
+}
+
 // Extract a map value from a map.
 func ExtractMapValue(entry map[string]interface{}, key string) string {
 	value, ok := (entry)[key].(map[string]interface{})
@@ -77,29 +87,21 @@ func ExtractMapValue(entry map[string]interface{}, key string) string {
 
 // Convert a map to a struct.
 func LogLineMapToStruct(line map[string]interface{}, options *FormatterOptions) LogLine {
-	output := LogLine{}
+	output := LogLine{
+		Additional: make(map[string]interface{}),
+	}
 
 	output.Time = FormatTimestamp(ExtractValue(line, options.TimeKey), options.TimestampFormat)
-	output.Level = ExtractValue(line, options.LevelKey).(string)
-	output.Pid = ExtractValue(line, options.PidKey).(float64)
-	output.Name = ExtractValue(line, options.NameKey).(string)
-	output.Context = ExtractValue(line, options.ContextKey).(string)
-	output.Msg = ExtractValue(line, options.MsgKey).(string)
+	output.Level = ExtractTypedValue(line, options.LevelKey, "")
+	output.Pid = ExtractTypedValue(line, options.PidKey, float64(0))
+	output.Name = ExtractTypedValue(line, options.NameKey, "")
+	output.Context = ExtractTypedValue(line, options.ContextKey, "")
+	output.Msg = ExtractTypedValue(line, options.MsgKey, "")
+	output.Hostname = ExtractTypedValue(line, options.HostnameKey, "")
 
-	// Check for hostname
-	if HasKey(line, options.HostnameKey) {
-		output.Hostname = ExtractValue(line, options.HostnameKey).(string)
-	}
-
-	// Check for request object
-	if HasKey(line, options.RequestKey) {
-		output.Req = ExtractMapValue(line, options.RequestKey)
-	}
-
-	// Check for response object
-	if HasKey(line, options.ResponseKey) {
-		output.Res = ExtractMapValue(line, options.ResponseKey)
-	}
+	// Extract request and response objects
+	output.Req = ExtractMapValue(line, options.RequestKey)
+	output.Res = ExtractMapValue(line, options.ResponseKey)
 
 	// Check for error object in log line
 	if HasAnyKey(line, options.ErrorObjectKeys) {
@@ -108,6 +110,13 @@ func LogLineMapToStruct(line map[string]interface{}, options *FormatterOptions) 
 				output.Error = ExtractValue(line, key)
 				break
 			}
+		}
+	}
+
+	// Extract additional keys
+	for _, key := range options.AdditionalKeys {
+		if value := ExtractValue(line, key); value != "" {
+			output.Additional[key] = value
 		}
 	}
 

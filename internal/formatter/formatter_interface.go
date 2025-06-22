@@ -16,19 +16,21 @@ type FormatterOptions struct {
 	HostnameKey        string
 	RequestKey         string
 	ResponseKey        string
+	AdditionalKeys     []string
 }
 
 type LogLine struct {
-	Time     string
-	Level    string
-	Pid      float64
-	Name     string
-	Context  string
-	Msg      string
-	Error    interface{}
-	Req      string
-	Res      string
-	Hostname string
+	Time       string
+	Level      string
+	Pid        float64
+	Name       string
+	Context    string
+	Msg        string
+	Error      interface{}
+	Req        string
+	Res        string
+	Hostname   string
+	Additional map[string]interface{}
 }
 
 type Formatter interface {

@@ -7,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var VERSION = "1.1.0"
+
 var (
 	FormatTemplateFile string
 	TimestampFormat    string
@@ -20,13 +22,15 @@ var (
 	HostnameKey        string
 	RequestKey         string
 	ResponseKey        string
+	AdditionalKeys     []string
 )
 
 func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "prettylogs",
-		Short: "Pretty print json log files",
-		Long:  "Takes a json log from another process and pretty prints it to a specified output",
+		Use:     "prettylogs",
+		Short:   "Pretty print json log files",
+		Long:    "Takes a json log from another process and pretty prints it to a specified output",
+		Version: VERSION,
 		Run: func(cmd *cobra.Command, args []string) {
 			formatTemplateFile, _ := cmd.Flags().GetString("formatTemplateFile")
 			outputFormat, _ := cmd.Flags().GetString("messageFormat")
@@ -40,6 +44,7 @@ func NewRootCmd() *cobra.Command {
 			msgKey, _ := cmd.Flags().GetString("msgKey")
 			errorObjectKeys, _ := cmd.Flags().GetStringSlice("errorLikeObjectKeys")
 			requestKey, _ := cmd.Flags().GetString("requestKey")
+			additionalKeys, _ := cmd.Flags().GetStringSlice("additionalKeys")
 
 			// Create a new json formatter
 			formatter, err := formatter.NewJsonFormatter(&formatter.FormatterOptions{
@@ -55,6 +60,7 @@ func NewRootCmd() *cobra.Command {
 				ErrorObjectKeys:    errorObjectKeys,
 				HostnameKey:        hostnameKey,
 				RequestKey:         requestKey,
+				AdditionalKeys:     additionalKeys,
 			})
 			if err != nil {
 				cmd.PrintErr(err)
@@ -82,6 +88,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&HostnameKey, "hostnameKey", "H", formatter.HOSTNAME_KEY, "Key for the log hostname in the log line")
 	cmd.PersistentFlags().StringVarP(&RequestKey, "requestKey", "r", formatter.REQUEST_KEY, "Key for the log request in the log line")
 	cmd.PersistentFlags().StringVarP(&ResponseKey, "responseKey", "R", formatter.RESPONSE_KEY, "Key for the log response in the log line")
+	cmd.PersistentFlags().StringSliceVarP(&AdditionalKeys, "additionalKeys", "a", []string{}, "Additional JSON keys to extract for template use")
 
 	return cmd
 }

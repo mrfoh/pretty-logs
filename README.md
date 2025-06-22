@@ -8,6 +8,7 @@ Pretty Logs offers extensive customization options to handle various JSON log fo
 
 - Flexible timestamp formatting with customizable patterns
 - Support for custom field mapping through command-line flags
+- **Additional keys extraction** for arbitrary JSON fields in templates
 - Error object detection and formatting
 - Request/response object handling
 - Template-based output formatting
@@ -64,6 +65,7 @@ The tool provides numerous flags to customize its behavior:
 - `-H, --hostnameKey`: Specify the key for hostname (default: "hostname")
 - `-r, --requestKey`: Specify the key for request objects (default: "req")
 - `-R, --responseKey`: Specify the key for response objects (default: "res")
+- `-a, --additionalKeys`: Specify additional JSON keys to extract for template use (comma-separated)
 
 ### Example Usage
 
@@ -82,6 +84,17 @@ Using a custom format template:
 cat logs.json | prettylogs -F my_template.tmpl
 ```
 
+Extracting additional JSON fields for templates:
+```bash
+# Extract traceId and userId fields
+cat logs.json | prettylogs --additionalKeys traceId,userId -F my_template.tmpl
+```
+
+Real-world example with additional keys:
+```bash
+echo '{"time":"2023-01-01T10:00:00Z","level":"error","msg":"Database connection failed","traceId":"abc123","userId":"user456","service":"api"}' | prettylogs -a traceId,userId,service
+```
+
 ## Template Format
 
 Pretty Logs supports custom templates for output formatting. Templates use Go's text/template syntax and have access to the following fields:
@@ -95,6 +108,23 @@ Pretty Logs supports custom templates for output formatting. Templates use Go's 
 - `{{.Error}}`: Error message (if present)
 - `{{.Req}}`: Request object (if present)
 - `{{.Hostname}}`: Hostname
+- `{{.Additional.keyName}}`: Additional extracted fields (when using `--additionalKeys`)
+
+### Additional Keys in Templates
+
+When using the `--additionalKeys` flag, you can access the extracted fields in templates using the `{{.Additional.keyName}}` syntax:
+
+```go
+{{.Time}} [{{.Level}}] {{.Msg}}
+{{- if .Additional.traceId}} | Trace: {{.Additional.traceId}}{{end}}
+{{- if .Additional.userId}} | User: {{.Additional.userId}}{{end}}
+{{- if .Additional.service}} | Service: {{.Additional.service}}{{end}}
+```
+
+Example template output:
+```
+2023-01-01T10:00:00Z [error] Database connection failed | Trace: abc123 | User: user456 | Service: api
+```
 
 ## Contributing
 
