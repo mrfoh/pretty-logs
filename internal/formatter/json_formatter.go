@@ -48,28 +48,26 @@ func NewJsonFormatter(options *FormatterOptions) (Formatter, error) {
 }
 
 // Print the log line using the provided template.
-func (f *JsonFormatter) PrintLogLineTemplate(line map[string]interface{}) error {
-	input := LogLineMapToStruct(line, f.Options)
-
+func (f *JsonFormatter) PrintLogLineTemplate(logLine LogLine) error {
 	if f.Template == nil {
 		return fmt.Errorf("no template available")
 	}
 
-	if err := f.Template.Execute(os.Stdout, input); err != nil {
+	if err := f.Template.Execute(os.Stdout, logLine); err != nil {
 		return fmt.Errorf("error executing template: %w", err)
 	}
 	return nil
 }
 
 // Print the log line to stdout using the provided template or raw JSON.
-func (f *JsonFormatter) PrintLogLine(line map[string]interface{}) {
+func (f *JsonFormatter) PrintLogLine(logLine LogLine) {
 	var err error
 	if f.Template != nil {
-		err = f.PrintLogLineTemplate(line)
+		err = f.PrintLogLineTemplate(logLine)
 	} else {
 		// Fallback: print the raw JSON log line.
 		var out []byte
-		out, err = json.Marshal(line)
+		out, err = json.Marshal(logLine)
 		if err == nil {
 			fmt.Println(string(out))
 		}
@@ -92,37 +90,7 @@ func (f *JsonFormatter) Process(input *os.File) error {
 			continue
 		}
 
-		logLine := make(map[string]interface{})
-
-		// Extract standard fields.
-		logLine[f.Options.TimeKey] = ExtractValue(entry, f.Options.TimeKey)
-		logLine[f.Options.LevelKey] = ExtractValue(entry, f.Options.LevelKey)
-		logLine[f.Options.PidKey] = ExtractValue(entry, f.Options.PidKey)
-		logLine[f.Options.NameKey] = ExtractValue(entry, f.Options.NameKey)
-		logLine[f.Options.ContextKey] = ExtractValue(entry, f.Options.ContextKey)
-		logLine[f.Options.HostnameKey] = ExtractValue(entry, f.Options.HostnameKey)
-		logLine[f.Options.MsgKey] = ExtractValue(entry, f.Options.MsgKey)
-		logLine[f.Options.RequestKey] = ExtractValue(entry, f.Options.RequestKey)
-
-		// Extract additional keys if specified.
-		for _, key := range f.Options.AdditionalKeys {
-			if HasKey(entry, key) {
-				logLine[key] = ExtractValue(entry, key)
-			}
-		}
-
-		// Handle error if present.
-		if HasAnyKey(entry, f.Options.ErrorObjectKeys) {
-			// Find the first error key and extract the error message.
-			for _, key := range f.Options.ErrorObjectKeys {
-				// Check if the key exists in the log entry.
-				if HasKey(entry, key) {
-					logLine[key] = ExtractError(entry[key])
-					break
-				}
-			}
-		}
-
+		logLine := LogLineMapToStruct(entry, f.Options)
 		f.PrintLogLine(logLine)
 	}
 
